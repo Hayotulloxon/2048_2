@@ -1,0 +1,1311 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2048 Coin Game</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script type="module">
+        // Import the functions you need from the SDKs you need
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
+        import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-analytics.js";
+        import { getDatabase, ref, set, get, push, onValue, update } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-database.js";
+        
+        // Your web app's Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyBYrMBCCnb1XiTM8EHn9u-vw7ACHAdvlaQ",
+            authDomain: "project-346.firebaseapp.com",
+            databaseURL: "https://project-346-default-rtdb.firebaseio.com",
+            projectId: "project-346",
+            storageBucket: "project-346.firebasestorage.app",
+            messagingSenderId: "863166821030",
+            appId: "1:863166821030:web:c222bcb42da96f3de1ba67",
+            measurementId: "G-ZCNRBT9680"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const analytics = getAnalytics(app);
+        const database = getDatabase(app);
+        
+        // Make Firebase available globally
+        window.firebaseApp = app;
+        window.firebaseDb = database;
+        window.firebaseRef = ref;
+        window.firebaseSet = set;
+        window.firebaseGet = get;
+        window.firebasePush = push;
+        window.firebaseOnValue = onValue;
+        window.firebaseUpdate = update;
+    </script>
+    <style>
+        .tile {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            transform: scale(1);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            animation: tileAppear 0.4s ease-out;
+        }
+        .tile:hover {
+            transform: scale(1.02);
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+        }
+        @keyframes tileAppear {
+            0% { 
+                transform: scale(0) rotate(180deg);
+                opacity: 0;
+            }
+            50% {
+                transform: scale(1.1) rotate(90deg);
+                opacity: 0.8;
+            }
+            100% { 
+                transform: scale(1) rotate(0deg);
+                opacity: 1;
+            }
+        }
+        .tile-2 { 
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 50%, #cbd5e1 100%); 
+            color: #1e293b; 
+            border: 2px solid rgba(100, 116, 139, 0.3);
+            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            font-weight: 800;
+            font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif;
+            letter-spacing: -0.02em;
+            position: relative;
+            overflow: hidden;
+        }
+        .tile-2::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, rgba(255,255,255,0.8) 0%, rgba(255,255,255,0.2) 100%);
+            border-radius: inherit;
+        }
+        .tile-4 { 
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 50%, #f59e0b 100%); 
+            color: #92400e; 
+            border: 2px solid rgba(245, 158, 11, 0.3);
+            text-shadow: 0 1px 3px rgba(146, 64, 14, 0.3);
+            font-weight: 800;
+            font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif;
+            letter-spacing: -0.02em;
+            position: relative;
+            overflow: hidden;
+        }
+        .tile-4::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, rgba(255,255,255,0.6) 0%, rgba(255,255,255,0.1) 100%);
+            border-radius: inherit;
+        }
+        .tile-8 { 
+            background: linear-gradient(135deg, #fed7aa 0%, #fb923c 50%, #ea580c 100%); 
+            color: #ffffff; 
+            border: 2px solid rgba(234, 88, 12, 0.4);
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
+            font-weight: 800;
+            font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif;
+            letter-spacing: -0.02em;
+            position: relative;
+            overflow: hidden;
+        }
+        .tile-8::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, rgba(255,255,255,0.3) 0%, rgba(255,255,255,0.05) 100%);
+            border-radius: inherit;
+        }
+        .tile-16 { 
+            background: linear-gradient(135deg, #fecaca 0%, #f87171 50%, #dc2626 100%); 
+            color: #ffffff; 
+            border: 2px solid rgba(220, 38, 38, 0.4);
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+            font-weight: 800;
+            font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif;
+            letter-spacing: -0.02em;
+            position: relative;
+            overflow: hidden;
+        }
+        .tile-16::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, rgba(255,255,255,0.25) 0%, rgba(255,255,255,0.05) 100%);
+            border-radius: inherit;
+        }
+        .tile-32 { 
+            background: linear-gradient(135deg, #f3e8ff 0%, #c084fc 50%, #9333ea 100%); 
+            color: #ffffff; 
+            border: 2px solid rgba(147, 51, 234, 0.4);
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+            font-weight: 800;
+            font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif;
+            letter-spacing: -0.02em;
+            position: relative;
+            overflow: hidden;
+        }
+        .tile-32::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, rgba(255,255,255,0.25) 0%, rgba(255,255,255,0.05) 100%);
+            border-radius: inherit;
+        }
+        .tile-64 { 
+            background: linear-gradient(135deg, #ddd6fe 0%, #a78bfa 50%, #7c3aed 100%); 
+            color: #ffffff; 
+            border: 2px solid rgba(124, 58, 237, 0.4);
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
+            font-weight: 800;
+            font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif;
+            letter-spacing: -0.02em;
+            position: relative;
+            overflow: hidden;
+        }
+        .tile-64::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, rgba(255,255,255,0.25) 0%, rgba(255,255,255,0.05) 100%);
+            border-radius: inherit;
+        }
+        .tile-128 { 
+            background: linear-gradient(135deg, #bfdbfe 0%, #60a5fa 50%, #2563eb 100%); 
+            color: #ffffff; 
+            font-size: 0.9em; 
+            border: 2px solid rgba(37, 99, 235, 0.4);
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
+            font-weight: 800;
+            font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif;
+            letter-spacing: -0.03em;
+            position: relative;
+            overflow: hidden;
+        }
+        .tile-128::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, rgba(255,255,255,0.25) 0%, rgba(255,255,255,0.05) 100%);
+            border-radius: inherit;
+        }
+        .tile-256 { 
+            background: linear-gradient(135deg, #a7f3d0 0%, #34d399 50%, #059669 100%); 
+            color: #ffffff; 
+            font-size: 0.9em; 
+            border: 2px solid rgba(5, 150, 105, 0.4);
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
+            font-weight: 800;
+            font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif;
+            letter-spacing: -0.03em;
+            position: relative;
+            overflow: hidden;
+        }
+        .tile-256::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, rgba(255,255,255,0.25) 0%, rgba(255,255,255,0.05) 100%);
+            border-radius: inherit;
+        }
+        .tile-512 { 
+            background: linear-gradient(135deg, #fde047 0%, #eab308 50%, #ca8a04 100%); 
+            color: #1f2937; 
+            font-size: 0.9em; 
+            border: 2px solid rgba(202, 138, 4, 0.4);
+            text-shadow: 0 1px 3px rgba(255, 255, 255, 0.4);
+            font-weight: 800;
+            font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif;
+            letter-spacing: -0.03em;
+            position: relative;
+            overflow: hidden;
+        }
+        .tile-512::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, rgba(255,255,255,0.4) 0%, rgba(255,255,255,0.1) 100%);
+            border-radius: inherit;
+        }
+        .tile-1024 { 
+            background: linear-gradient(135deg, #fb7185 0%, #e11d48 50%, #be123c 100%); 
+            color: #ffffff; 
+            font-size: 0.8em; 
+            border: 2px solid rgba(190, 18, 60, 0.4);
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.7);
+            font-weight: 800;
+            font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif;
+            letter-spacing: -0.04em;
+            position: relative;
+            overflow: hidden;
+        }
+        .tile-1024::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, rgba(255,255,255,0.25) 0%, rgba(255,255,255,0.05) 100%);
+            border-radius: inherit;
+        }
+        .tile-2048 { 
+            background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 50%, #d97706 100%); 
+            color: #ffffff; 
+            font-size: 0.8em; 
+            border: 2px solid rgba(217, 119, 6, 0.5);
+            text-shadow: 0 3px 6px rgba(0, 0, 0, 0.8);
+            font-weight: 800;
+            font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif;
+            letter-spacing: -0.04em;
+            animation: pulse2048 2s infinite;
+            box-shadow: 0 0 30px rgba(251, 191, 36, 0.6), 0 0 60px rgba(251, 191, 36, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+        .tile-2048::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, rgba(255,255,255,0.3) 0%, rgba(255,255,255,0.05) 100%);
+            border-radius: inherit;
+        }
+        @keyframes pulse2048 {
+            0%, 100% { 
+                transform: scale(1);
+                box-shadow: 0 0 30px rgba(251, 191, 36, 0.6), 0 0 60px rgba(251, 191, 36, 0.3);
+            }
+            50% { 
+                transform: scale(1.05);
+                box-shadow: 0 0 40px rgba(251, 191, 36, 0.8), 0 0 80px rgba(251, 191, 36, 0.4);
+            }
+        }
+
+        .game-grid {
+            background: linear-gradient(135deg, #1e293b, #334155, #475569);
+            border-radius: 20px;
+            padding: 12px;
+            position: relative;
+            aspect-ratio: 1;
+            max-width: 350px;
+            width: 100%;
+            box-shadow: 
+                0 20px 25px -5px rgba(0, 0, 0, 0.1),
+                0 10px 10px -5px rgba(0, 0, 0, 0.04),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .grid-cell {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
+            border-radius: 12px;
+            aspect-ratio: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: clamp(1rem, 4vw, 1.5rem);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            position: relative;
+            overflow: hidden;
+            z-index: 1;
+        }
+        .grid-cell::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.5s;
+        }
+        .grid-cell:hover::before {
+            left: 100%;
+        }
+        .game-container {
+            max-width: 400px;
+            margin: 0 auto;
+            padding: 0 16px;
+        }
+        .nav-item {
+            text-align: center;
+            background: rgba(255, 255, 255, 0.7);
+            color: #6b7280;
+            border: 1px solid rgba(229, 231, 235, 0.5);
+        }
+        .nav-item.active {
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+            border: 1px solid transparent;
+        }
+        .nav-item:hover:not(.active) {
+            background: rgba(255, 255, 255, 0.9);
+            transform: translateY(-1px);
+        }
+        .coin-animation {
+            animation: coinBounce 0.6s ease-out;
+        }
+        @keyframes coinBounce {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); }
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
+    <!-- Header -->
+    <div class="bg-gradient-to-r from-blue-600 to-purple-600 shadow-lg p-4 flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+            <div class="w-12 h-12 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-xl flex items-center justify-center shadow-lg">
+                <span class="text-white font-bold text-lg">2048</span>
+            </div>
+            <div>
+                <h1 class="font-bold text-white text-lg" id="username">2048 Coin Game</h1>
+                <p class="text-sm text-blue-100">Telegram WebApp</p>
+            </div>
+        </div>
+        <div class="flex items-center space-x-2 bg-white/20 backdrop-blur-sm px-4 py-2 rounded-full">
+            <span class="text-2xl">🪙</span>
+            <span class="font-bold text-white" id="coinBalance">0</span>
+        </div>
+    </div>
+
+    <!-- Navigation -->
+    <div class="bg-white/80 backdrop-blur-sm border-t border-gray-200 px-4 py-3 sticky top-0 z-10">
+        <div class="flex space-x-1 max-w-md mx-auto">
+            <button class="nav-item flex-1 py-3 px-2 rounded-xl text-xs font-medium transition-all duration-200 active shadow-sm" onclick="showTab('game')">
+                <div class="text-lg mb-1">🎮</div>
+                O'yin
+            </button>
+            <button class="nav-item flex-1 py-3 px-2 rounded-xl text-xs font-medium transition-all duration-200 shadow-sm" onclick="showTab('tasks')">
+                <div class="text-lg mb-1">📋</div>
+                Vazifalar
+            </button>
+            <button class="nav-item flex-1 py-3 px-2 rounded-xl text-xs font-medium transition-all duration-200 shadow-sm" onclick="showTab('leaderboard')">
+                <div class="text-lg mb-1">🏆</div>
+                Reyting
+            </button>
+            <button class="nav-item flex-1 py-3 px-2 rounded-xl text-xs font-medium transition-all duration-200 shadow-sm" onclick="showTab('referral')">
+                <div class="text-lg mb-1">👥</div>
+                Referal
+            </button>
+        </div>
+    </div>
+
+    <!-- Game Tab -->
+    <div id="gameTab" class="pb-6">
+        <!-- Game Stats -->
+        <div class="grid grid-cols-3 gap-3 mb-6 px-4">
+            <div class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-4 text-center shadow-lg">
+                <div class="text-2xl font-bold text-white" id="score">0</div>
+                <div class="text-xs text-blue-100 font-medium">Ball</div>
+            </div>
+            <div class="bg-gradient-to-br from-green-500 to-green-600 rounded-xl p-4 text-center shadow-lg">
+                <div class="text-2xl font-bold text-white" id="bestScore">0</div>
+                <div class="text-xs text-green-100 font-medium">Eng yaxshi</div>
+            </div>
+            <div class="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl p-4 text-center shadow-lg">
+                <div class="text-2xl font-bold text-white" id="maxTile">2</div>
+                <div class="text-xs text-purple-100 font-medium">Max raqam</div>
+            </div>
+        </div>
+
+        <!-- Game Grid -->
+        <div class="game-container">
+            <div class="game-grid mx-auto mb-4">
+                <div class="grid grid-cols-4 gap-2 h-full w-full" id="gameGrid">
+                    <!-- Grid cells will be generated by JavaScript -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Game Controls -->
+        <div class="flex justify-center space-x-3 mb-6 px-4">
+            <button onclick="newGame()" class="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-6 py-3 rounded-xl font-medium shadow-lg transition-all duration-200 transform hover:scale-105">
+                🔄 Yangi o'yin
+            </button>
+            <button onclick="showUpgrades()" class="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white px-6 py-3 rounded-xl font-medium shadow-lg transition-all duration-200 transform hover:scale-105">
+                ⚡ Yaxshilash
+            </button>
+        </div>
+
+        <!-- Swipe Instructions -->
+        <div class="text-center text-gray-600 text-sm bg-white/50 backdrop-blur-sm rounded-xl p-3 mx-4">
+            📱 Suring yoki klaviatura tugmalarini ishlating
+        </div>
+    </div>
+
+    <!-- Tasks Tab -->
+    <div id="tasksTab" class="p-4 hidden">
+        <h2 class="text-xl font-bold mb-4">Vazifalar</h2>
+        <div id="tasksList" class="space-y-3">
+            <!-- Tasks will be loaded here -->
+        </div>
+    </div>
+
+    <!-- Leaderboard Tab -->
+    <div id="leaderboardTab" class="p-4 hidden">
+        <div class="flex space-x-2 mb-4">
+            <button onclick="showLeaderboard('coins')" class="flex-1 py-2 px-3 bg-blue-500 text-white rounded-lg text-sm font-medium" id="coinsLeaderBtn">
+                🪙 Tangalar
+            </button>
+            <button onclick="showLeaderboard('score')" class="flex-1 py-2 px-3 bg-gray-200 text-gray-700 rounded-lg text-sm font-medium" id="scoreLeaderBtn">
+                🏆 Ball
+            </button>
+        </div>
+        <div id="leaderboardList" class="space-y-2">
+            <!-- Leaderboard will be loaded here -->
+        </div>
+    </div>
+
+    <!-- Referral Tab -->
+    <div id="referralTab" class="p-4 hidden">
+        <h2 class="text-xl font-bold mb-4">Do'stlarni taklif qiling</h2>
+        
+        <div class="bg-white rounded-lg p-4 mb-4 shadow-sm">
+            <h3 class="font-semibold mb-2">Sizning referal linkingiz:</h3>
+            <div class="flex items-center space-x-2">
+                <input type="text" id="referralLink" class="flex-1 p-2 border rounded-lg bg-gray-50" readonly>
+                <button onclick="copyReferralLink()" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg">
+                    Nusxalash
+                </button>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-r from-green-100 to-blue-100 rounded-lg p-4 mb-4">
+            <h3 class="font-semibold mb-2">Mukofotlar:</h3>
+            <div class="space-y-1 text-sm">
+                <div>• Har bir do'st uchun: <span class="font-bold text-green-600">100 🪙</span></div>
+                <div>• Do'stingiz ham oladi: <span class="font-bold text-green-600">50 🪙</span></div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-lg p-4 shadow-sm">
+            <h3 class="font-semibold mb-2">Taklif qilingan do'stlar: <span id="referralCount">0</span></h3>
+            <div id="referralsList" class="space-y-2">
+                <!-- Referrals list will be loaded here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Upgrades Modal -->
+    <div id="upgradesModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+        <div class="bg-white rounded-lg p-6 m-4 max-w-sm w-full">
+            <h3 class="text-lg font-bold mb-4">Yaxshilashlar</h3>
+            <div class="space-y-3">
+                <div class="border rounded-lg p-3">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="font-medium">Katta raqam ehtimoli</span>
+                        <span class="text-sm text-gray-500">Daraja <span id="bigTileLevel">1</span></span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-sm text-gray-600">Keyingi: 200 🪙</span>
+                        <button onclick="buyUpgrade('bigTile')" class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm">
+                            Sotib olish
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="border rounded-lg p-3">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="font-medium">Minimal qiymat</span>
+                        <span class="text-sm text-gray-500">Daraja <span id="minValueLevel">1</span></span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-sm text-gray-600">Keyingi: 300 🪙</span>
+                        <button onclick="buyUpgrade('minValue')" class="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-sm">
+                            Sotib olish
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <button onclick="hideUpgrades()" class="w-full mt-4 bg-gray-200 hover:bg-gray-300 text-gray-700 py-2 rounded-lg">
+                Yopish
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Game State
+        let gameState = {
+            grid: Array(4).fill().map(() => Array(4).fill(0)),
+            score: 0,
+            bestScore: 0,
+            maxTile: 2,
+            coins: 0,
+            upgrades: {
+                bigTile: 1,
+                minValue: 1
+            }
+        };
+
+        // User Data
+        let userData = {
+            id: null,
+            username: 'Player',
+            coins: 0,
+            bestScore: 0,
+            maxTile: 2,
+            referralCode: '',
+            referrals: [],
+            completedTasks: []
+        };
+
+        // Sample Tasks
+        const tasks = [
+            {
+                id: 1,
+                title: 'Telegram kanalga obuna bo\'ling',
+                description: '@example_channel kanalga obuna bo\'lib 50 tanga oling',
+                reward: 50,
+                type: 'telegram',
+                action: 'https://t.me/example_channel',
+                completed: false
+            },
+            {
+                id: 2,
+                title: 'YouTube kanalga obuna',
+                description: 'YouTube kanalimizga obuna bo\'lib 75 tanga oling',
+                reward: 75,
+                type: 'youtube',
+                action: 'https://youtube.com/@example',
+                completed: false
+            },
+            {
+                id: 3,
+                title: 'Maxsus kod',
+                description: 'Maxsus kodni kiritib 100 tanga oling',
+                reward: 100,
+                type: 'code',
+                action: 'WELCOME2048',
+                completed: false
+            },
+            {
+                id: 4,
+                title: '3 ta do\'st taklif qiling',
+                description: '3 ta do\'stni taklif qilib 200 tanga oling',
+                reward: 200,
+                type: 'referral',
+                action: 3,
+                completed: false
+            }
+        ];
+
+        // Sample Leaderboard Data
+        let leaderboardData = [
+            { username: 'Player1', coins: 1250, score: 15420, maxTile: 512 },
+            { username: 'Player2', coins: 980, score: 12340, maxTile: 256 },
+            { username: 'Player3', coins: 750, score: 9870, maxTile: 128 },
+            { username: 'Player4', coins: 650, score: 8760, maxTile: 128 },
+            { username: 'Player5', coins: 500, score: 6540, maxTile: 64 }
+        ];
+
+        // Initialize Telegram WebApp
+        function initTelegram() {
+            if (window.Telegram && window.Telegram.WebApp) {
+                const tg = window.Telegram.WebApp;
+                tg.ready();
+                
+                if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
+                    const user = tg.initDataUnsafe.user;
+                    userData.id = user.id;
+                    userData.username = user.username || user.first_name || 'Player';
+                    document.getElementById('username').textContent = userData.username;
+                }
+                
+                // Generate referral code
+                userData.referralCode = generateReferralCode();
+                updateReferralLink();
+            }
+        }
+
+        // Generate referral code
+        function generateReferralCode() {
+            return 'REF' + Math.random().toString(36).substr(2, 8).toUpperCase();
+        }
+
+        // Initialize game grid
+        function initGrid() {
+            const grid = document.getElementById('gameGrid');
+            grid.innerHTML = '';
+            
+            for (let i = 0; i < 16; i++) {
+                const cell = document.createElement('div');
+                cell.className = 'grid-cell';
+                cell.id = `cell-${i}`;
+                grid.appendChild(cell);
+            }
+        }
+
+        // Add random tile
+        function addRandomTile() {
+            const emptyCells = [];
+            for (let i = 0; i < 4; i++) {
+                for (let j = 0; j < 4; j++) {
+                    if (gameState.grid[i][j] === 0) {
+                        emptyCells.push({row: i, col: j});
+                    }
+                }
+            }
+            
+            if (emptyCells.length > 0) {
+                const randomCell = emptyCells[Math.floor(Math.random() * emptyCells.length)];
+                const value = Math.random() < (0.1 + gameState.upgrades.bigTile * 0.05) ? 4 : 2;
+                gameState.grid[randomCell.row][randomCell.col] = Math.max(value, gameState.upgrades.minValue * 2);
+            }
+        }
+
+        // Update display
+        function updateDisplay() {
+            for (let i = 0; i < 4; i++) {
+                for (let j = 0; j < 4; j++) {
+                    const cellIndex = i * 4 + j;
+                    const cell = document.getElementById(`cell-${cellIndex}`);
+                    const value = gameState.grid[i][j];
+                    
+                    if (value === 0) {
+                        cell.textContent = '';
+                        cell.className = 'grid-cell';
+                    } else {
+                        cell.textContent = value;
+                        cell.className = `grid-cell tile tile-${value}`;
+                        cell.style.zIndex = '2';
+                    }
+                }
+            }
+            
+            document.getElementById('score').textContent = gameState.score;
+            document.getElementById('bestScore').textContent = gameState.bestScore;
+            document.getElementById('maxTile').textContent = gameState.maxTile;
+            document.getElementById('coinBalance').textContent = userData.coins;
+        }
+
+        // Move tiles
+        function move(direction) {
+            let moved = false;
+            let newGrid = gameState.grid.map(row => [...row]);
+            let scoreGained = 0;
+            
+            if (direction === 'left' || direction === 'right') {
+                for (let i = 0; i < 4; i++) {
+                    let row = newGrid[i];
+                    if (direction === 'right') row = row.reverse();
+                    
+                    // Remove zeros
+                    row = row.filter(val => val !== 0);
+                    
+                    // Merge tiles
+                    for (let j = 0; j < row.length - 1; j++) {
+                        if (row[j] === row[j + 1]) {
+                            row[j] *= 2;
+                            scoreGained += row[j];
+                            row[j + 1] = 0;
+                            gameState.maxTile = Math.max(gameState.maxTile, row[j]);
+                        }
+                    }
+                    
+                    // Remove zeros again
+                    row = row.filter(val => val !== 0);
+                    
+                    // Add zeros to the end
+                    while (row.length < 4) {
+                        row.push(0);
+                    }
+                    
+                    if (direction === 'right') row = row.reverse();
+                    
+                    // Check if row changed
+                    for (let j = 0; j < 4; j++) {
+                        if (newGrid[i][j] !== row[j]) {
+                            moved = true;
+                        }
+                    }
+                    
+                    newGrid[i] = row;
+                }
+            } else {
+                // Transpose for up/down movement
+                let transposed = Array(4).fill().map(() => Array(4).fill(0));
+                for (let i = 0; i < 4; i++) {
+                    for (let j = 0; j < 4; j++) {
+                        transposed[j][i] = newGrid[i][j];
+                    }
+                }
+                
+                for (let i = 0; i < 4; i++) {
+                    let row = transposed[i];
+                    if (direction === 'down') row = row.reverse();
+                    
+                    // Remove zeros
+                    row = row.filter(val => val !== 0);
+                    
+                    // Merge tiles
+                    for (let j = 0; j < row.length - 1; j++) {
+                        if (row[j] === row[j + 1]) {
+                            row[j] *= 2;
+                            scoreGained += row[j];
+                            row[j + 1] = 0;
+                            gameState.maxTile = Math.max(gameState.maxTile, row[j]);
+                        }
+                    }
+                    
+                    // Remove zeros again
+                    row = row.filter(val => val !== 0);
+                    
+                    // Add zeros to the end
+                    while (row.length < 4) {
+                        row.push(0);
+                    }
+                    
+                    if (direction === 'down') row = row.reverse();
+                    transposed[i] = row;
+                }
+                
+                // Transpose back
+                for (let i = 0; i < 4; i++) {
+                    for (let j = 0; j < 4; j++) {
+                        if (newGrid[i][j] !== transposed[j][i]) {
+                            moved = true;
+                        }
+                        newGrid[i][j] = transposed[j][i];
+                    }
+                }
+            }
+            
+            if (moved) {
+                gameState.grid = newGrid;
+                gameState.score += scoreGained;
+                gameState.bestScore = Math.max(gameState.bestScore, gameState.score);
+                
+                // Add coins for score gained
+                const coinsEarned = Math.floor(scoreGained / 10);
+                if (coinsEarned > 0) {
+                    userData.coins += coinsEarned;
+                    showCoinAnimation(coinsEarned);
+                }
+                
+                addRandomTile();
+                updateDisplay();
+                saveGameData();
+            }
+        }
+
+        // Show coin animation
+        function showCoinAnimation(amount) {
+            const coinBalance = document.getElementById('coinBalance');
+            coinBalance.classList.add('coin-animation');
+            setTimeout(() => {
+                coinBalance.classList.remove('coin-animation');
+            }, 600);
+        }
+
+        // New game
+        function newGame() {
+            gameState.grid = Array(4).fill().map(() => Array(4).fill(0));
+            gameState.score = 0;
+            addRandomTile();
+            addRandomTile();
+            updateDisplay();
+            saveGameData();
+        }
+
+        // Tab navigation
+        function showTab(tabName) {
+            // Hide all tabs
+            document.getElementById('gameTab').classList.add('hidden');
+            document.getElementById('tasksTab').classList.add('hidden');
+            document.getElementById('leaderboardTab').classList.add('hidden');
+            document.getElementById('referralTab').classList.add('hidden');
+            
+            // Remove active class from all nav items
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            
+            // Show selected tab
+            document.getElementById(tabName + 'Tab').classList.remove('hidden');
+            
+            // Add active class to clicked nav item
+            event.target.classList.add('active');
+            
+            // Load tab content
+            if (tabName === 'tasks') {
+                loadTasks();
+            } else if (tabName === 'leaderboard') {
+                showLeaderboard('coins');
+            } else if (tabName === 'referral') {
+                loadReferrals();
+            }
+        }
+
+        // Load tasks
+        function loadTasks() {
+            const tasksList = document.getElementById('tasksList');
+            tasksList.innerHTML = '';
+            
+            tasks.forEach(task => {
+                const isCompleted = userData.completedTasks.includes(task.id);
+                const taskElement = document.createElement('div');
+                taskElement.className = `bg-white rounded-lg p-4 shadow-sm border-l-4 ${isCompleted ? 'border-green-500 bg-green-50' : 'border-blue-500'}`;
+                
+                taskElement.innerHTML = `
+                    <div class="flex justify-between items-start">
+                        <div class="flex-1">
+                            <h3 class="font-semibold ${isCompleted ? 'text-green-700' : 'text-gray-800'}">${task.title}</h3>
+                            <p class="text-sm text-gray-600 mt-1">${task.description}</p>
+                            <div class="flex items-center mt-2">
+                                <span class="text-yellow-600 font-semibold">${task.reward} 🪙</span>
+                            </div>
+                        </div>
+                        <div class="ml-4">
+                            ${isCompleted ? 
+                                '<span class="bg-green-500 text-white px-3 py-1 rounded-full text-sm">✓ Bajarildi</span>' :
+                                `<button onclick="completeTask(${task.id})" class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded-full text-sm">Bajarish</button>`
+                            }
+                        </div>
+                    </div>
+                `;
+                
+                tasksList.appendChild(taskElement);
+            });
+        }
+
+        // Complete task
+        function completeTask(taskId) {
+            const task = tasks.find(t => t.id === taskId);
+            if (!task || userData.completedTasks.includes(taskId)) return;
+            
+            if (task.type === 'code') {
+                const code = prompt('Maxsus kodni kiriting:');
+                if (code !== task.action) {
+                    alert('Noto\'g\'ri kod!');
+                    return;
+                }
+            } else if (task.type === 'telegram' || task.type === 'youtube') {
+                // In real app, this would verify subscription
+                if (!confirm('Obuna bo\'ldingizmi?')) {
+                    return;
+                }
+            } else if (task.type === 'referral') {
+                if (userData.referrals.length < task.action) {
+                    alert(`Sizda faqat ${userData.referrals.length} ta referal bor. ${task.action} ta kerak.`);
+                    return;
+                }
+            }
+            
+            userData.completedTasks.push(taskId);
+            userData.coins += task.reward;
+            showCoinAnimation(task.reward);
+            updateDisplay();
+            loadTasks();
+            saveGameData();
+        }
+
+        // Show leaderboard
+        async function showLeaderboard(type) {
+            const coinsBtn = document.getElementById('coinsLeaderBtn');
+            const scoreBtn = document.getElementById('scoreLeaderBtn');
+            
+            if (type === 'coins') {
+                coinsBtn.className = 'flex-1 py-2 px-3 bg-blue-500 text-white rounded-lg text-sm font-medium';
+                scoreBtn.className = 'flex-1 py-2 px-3 bg-gray-200 text-gray-700 rounded-lg text-sm font-medium';
+            } else {
+                scoreBtn.className = 'flex-1 py-2 px-3 bg-blue-500 text-white rounded-lg text-sm font-medium';
+                coinsBtn.className = 'flex-1 py-2 px-3 bg-gray-200 text-gray-700 rounded-lg text-sm font-medium';
+            }
+            
+            const leaderboardList = document.getElementById('leaderboardList');
+            leaderboardList.innerHTML = '<div class="text-center py-4 text-gray-500">Yuklanmoqda...</div>';
+            
+            let allData = [...leaderboardData]; // Fallback data
+            
+            // Try to load from Firebase
+            if (window.firebaseDb) {
+                try {
+                    const leaderboardRef = window.firebaseRef(window.firebaseDb, 'leaderboard');
+                    const snapshot = await window.firebaseGet(leaderboardRef);
+                    
+                    if (snapshot.exists()) {
+                        const firebaseData = snapshot.val();
+                        allData = Object.values(firebaseData);
+                    }
+                } catch (error) {
+                    console.error('Error loading leaderboard from Firebase:', error);
+                }
+            }
+            
+            // Add current user to leaderboard if not already there
+            const currentUserData = {
+                username: userData.username,
+                coins: userData.coins,
+                score: gameState.bestScore,
+                maxTile: gameState.maxTile
+            };
+            
+            const userExists = allData.some(player => player.username === userData.username);
+            if (!userExists) {
+                allData.push(currentUserData);
+            }
+            
+            const sortedData = allData.sort((a, b) => {
+                return type === 'coins' ? b.coins - a.coins : b.score - a.score;
+            });
+            
+            leaderboardList.innerHTML = '';
+            
+            sortedData.slice(0, 10).forEach((player, index) => {
+                const isCurrentUser = player.username === userData.username;
+                const playerElement = document.createElement('div');
+                playerElement.className = `bg-white rounded-lg p-3 shadow-sm flex items-center justify-between ${isCurrentUser ? 'ring-2 ring-blue-500' : ''}`;
+                
+                playerElement.innerHTML = `
+                    <div class="flex items-center space-x-3">
+                        <div class="w-8 h-8 rounded-full ${index < 3 ? 'bg-gradient-to-r from-yellow-400 to-orange-500' : 'bg-gray-300'} flex items-center justify-center text-white font-bold text-sm">
+                            ${index + 1}
+                        </div>
+                        <div>
+                            <div class="font-semibold ${isCurrentUser ? 'text-blue-600' : 'text-gray-800'}">${player.username}</div>
+                            <div class="text-sm text-gray-500">Max: ${player.maxTile}</div>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <div class="font-bold ${type === 'coins' ? 'text-yellow-600' : 'text-blue-600'}">
+                            ${type === 'coins' ? player.coins + ' 🪙' : player.score.toLocaleString()}
+                        </div>
+                    </div>
+                `;
+                
+                leaderboardList.appendChild(playerElement);
+            });
+        }
+
+        // Update referral link
+        function updateReferralLink() {
+            const referralLink = document.getElementById('referralLink');
+            referralLink.value = `https://t.me/your_bot?start=${userData.referralCode}`;
+        }
+
+        // Copy referral link
+        function copyReferralLink() {
+            const referralLink = document.getElementById('referralLink');
+            referralLink.select();
+            document.execCommand('copy');
+            alert('Link nusxalandi!');
+        }
+
+        // Load referrals
+        function loadReferrals() {
+            document.getElementById('referralCount').textContent = userData.referrals.length;
+            
+            const referralsList = document.getElementById('referralsList');
+            referralsList.innerHTML = '';
+            
+            if (userData.referrals.length === 0) {
+                referralsList.innerHTML = '<p class="text-gray-500 text-center py-4">Hali hech kim taklif qilinmagan</p>';
+                return;
+            }
+            
+            userData.referrals.forEach(referral => {
+                const referralElement = document.createElement('div');
+                referralElement.className = 'flex items-center justify-between p-2 bg-gray-50 rounded-lg';
+                referralElement.innerHTML = `
+                    <span class="font-medium">${referral.username}</span>
+                    <span class="text-green-600 font-semibold">+100 🪙</span>
+                `;
+                referralsList.appendChild(referralElement);
+            });
+        }
+
+        // Show upgrades modal
+        function showUpgrades() {
+            document.getElementById('upgradesModal').classList.remove('hidden');
+            document.getElementById('upgradesModal').classList.add('flex');
+            updateUpgradesDisplay();
+        }
+
+        // Hide upgrades modal
+        function hideUpgrades() {
+            document.getElementById('upgradesModal').classList.add('hidden');
+            document.getElementById('upgradesModal').classList.remove('flex');
+        }
+
+        // Update upgrades display
+        function updateUpgradesDisplay() {
+            document.getElementById('bigTileLevel').textContent = gameState.upgrades.bigTile;
+            document.getElementById('minValueLevel').textContent = gameState.upgrades.minValue;
+        }
+
+        // Buy upgrade
+        function buyUpgrade(type) {
+            const costs = {
+                bigTile: gameState.upgrades.bigTile * 200,
+                minValue: gameState.upgrades.minValue * 300
+            };
+            
+            const cost = costs[type];
+            if (userData.coins >= cost) {
+                userData.coins -= cost;
+                gameState.upgrades[type]++;
+                updateDisplay();
+                updateUpgradesDisplay();
+                saveGameData();
+            } else {
+                alert('Yetarli tanga yo\'q!');
+            }
+        }
+
+        // Save game data to Firebase
+        async function saveGameData() {
+            if (!userData.id || !window.firebaseDb) {
+                // Fallback to localStorage if Firebase not available
+                const gameData = { gameState, userData };
+                localStorage.setItem('2048GameData', JSON.stringify(gameData));
+                return;
+            }
+            
+            try {
+                const userRef = window.firebaseRef(window.firebaseDb, `users/${userData.id}`);
+                await window.firebaseSet(userRef, {
+                    username: userData.username,
+                    coins: userData.coins,
+                    bestScore: gameState.bestScore,
+                    maxTile: gameState.maxTile,
+                    referralCode: userData.referralCode,
+                    referrals: userData.referrals,
+                    completedTasks: userData.completedTasks,
+                    upgrades: gameState.upgrades,
+                    lastUpdated: Date.now()
+                });
+                
+                // Also save to leaderboard
+                const leaderboardRef = window.firebaseRef(window.firebaseDb, `leaderboard/${userData.id}`);
+                await window.firebaseSet(leaderboardRef, {
+                    username: userData.username,
+                    coins: userData.coins,
+                    score: gameState.bestScore,
+                    maxTile: gameState.maxTile,
+                    lastUpdated: Date.now()
+                });
+            } catch (error) {
+                console.error('Error saving to Firebase:', error);
+                // Fallback to localStorage
+                const gameData = { gameState, userData };
+                localStorage.setItem('2048GameData', JSON.stringify(gameData));
+            }
+        }
+
+        // Load game data from Firebase
+        async function loadGameData() {
+            if (!userData.id || !window.firebaseDb) {
+                // Fallback to localStorage if Firebase not available
+                const savedData = localStorage.getItem('2048GameData');
+                if (savedData) {
+                    const data = JSON.parse(savedData);
+                    gameState = { ...gameState, ...data.gameState };
+                    userData = { ...userData, ...data.userData };
+                }
+                return;
+            }
+            
+            try {
+                const userRef = window.firebaseRef(window.firebaseDb, `users/${userData.id}`);
+                const snapshot = await window.firebaseGet(userRef);
+                
+                if (snapshot.exists()) {
+                    const data = snapshot.val();
+                    userData.coins = data.coins || 0;
+                    userData.referralCode = data.referralCode || userData.referralCode;
+                    userData.referrals = data.referrals || [];
+                    userData.completedTasks = data.completedTasks || [];
+                    gameState.bestScore = data.bestScore || 0;
+                    gameState.maxTile = data.maxTile || 2;
+                    gameState.upgrades = data.upgrades || { bigTile: 1, minValue: 1 };
+                }
+            } catch (error) {
+                console.error('Error loading from Firebase:', error);
+                // Fallback to localStorage
+                const savedData = localStorage.getItem('2048GameData');
+                if (savedData) {
+                    const data = JSON.parse(savedData);
+                    gameState = { ...gameState, ...data.gameState };
+                    userData = { ...userData, ...data.userData };
+                }
+            }
+        }
+
+        // Keyboard controls
+        document.addEventListener('keydown', (e) => {
+            if (document.getElementById('gameTab').classList.contains('hidden')) return;
+            
+            switch(e.key) {
+                case 'ArrowLeft':
+                    e.preventDefault();
+                    move('left');
+                    break;
+                case 'ArrowRight':
+                    e.preventDefault();
+                    move('right');
+                    break;
+                case 'ArrowUp':
+                    e.preventDefault();
+                    move('up');
+                    break;
+                case 'ArrowDown':
+                    e.preventDefault();
+                    move('down');
+                    break;
+            }
+        });
+
+        // Touch controls
+        let touchStartX = 0;
+        let touchStartY = 0;
+
+        document.addEventListener('touchstart', (e) => {
+            touchStartX = e.touches[0].clientX;
+            touchStartY = e.touches[0].clientY;
+        });
+
+        document.addEventListener('touchend', (e) => {
+            if (document.getElementById('gameTab').classList.contains('hidden')) return;
+            
+            const touchEndX = e.changedTouches[0].clientX;
+            const touchEndY = e.changedTouches[0].clientY;
+            
+            const deltaX = touchEndX - touchStartX;
+            const deltaY = touchEndY - touchStartY;
+            
+            const minSwipeDistance = 50;
+            
+            if (Math.abs(deltaX) > Math.abs(deltaY)) {
+                if (Math.abs(deltaX) > minSwipeDistance) {
+                    if (deltaX > 0) {
+                        move('right');
+                    } else {
+                        move('left');
+                    }
+                }
+            } else {
+                if (Math.abs(deltaY) > minSwipeDistance) {
+                    if (deltaY > 0) {
+                        move('down');
+                    } else {
+                        move('up');
+                    }
+                }
+            }
+        });
+
+        // Handle referral
+        async function handleReferral(referralCode) {
+            if (!window.firebaseDb || !userData.id) return;
+            
+            try {
+                // Find the referrer
+                const usersRef = window.firebaseRef(window.firebaseDb, 'users');
+                const snapshot = await window.firebaseGet(usersRef);
+                
+                if (snapshot.exists()) {
+                    const users = snapshot.val();
+                    const referrer = Object.entries(users).find(([id, user]) => 
+                        user.referralCode === referralCode && id !== userData.id.toString()
+                    );
+                    
+                    if (referrer) {
+                        const [referrerId, referrerData] = referrer;
+                        
+                        // Add referral to referrer
+                        const newReferral = {
+                            id: userData.id,
+                            username: userData.username,
+                            joinedAt: Date.now()
+                        };
+                        
+                        const referrerReferrals = referrerData.referrals || [];
+                        referrerReferrals.push(newReferral);
+                        
+                        // Update referrer data
+                        await window.firebaseUpdate(window.firebaseRef(window.firebaseDb, `users/${referrerId}`), {
+                            referrals: referrerReferrals,
+                            coins: (referrerData.coins || 0) + 100
+                        });
+                        
+                        // Give bonus to new user
+                        userData.coins += 50;
+                        await saveGameData();
+                        
+                        alert('Referal bonusi olindi! Siz 50 🪙, do\'stingiz 100 🪙 oldi!');
+                    }
+                }
+            } catch (error) {
+                console.error('Error handling referral:', error);
+            }
+        }
+
+        // Initialize app
+        async function init() {
+            initTelegram();
+            
+            // Check for referral code in URL
+            const urlParams = new URLSearchParams(window.location.search);
+            const referralCode = urlParams.get('start') || urlParams.get('ref');
+            
+            await loadGameData();
+            initGrid();
+            
+            // Handle referral if present and user is new
+            if (referralCode && userData.coins === 0 && userData.completedTasks.length === 0) {
+                await handleReferral(referralCode);
+            }
+            
+            // Start new game if no saved game
+            if (gameState.grid.every(row => row.every(cell => cell === 0))) {
+                addRandomTile();
+                addRandomTile();
+            }
+            
+            updateDisplay();
+            updateReferralLink();
+        }
+
+        // Start the app
+        init();
+    </script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'974b55d9e226a9d3',t:'MTc1NjEyNzQ4Ny4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
