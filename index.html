@@ -26,7 +26,7 @@
             --tile-bg-128: #edcf72;
             --tile-text-128: #f9f6f2;
             --tile-bg-256: #edcc61;
-            --tile-text-256: #f9f6f2;
+            --tile-text-256: #f9f2d6;
             --tile-bg-512: #edc850;
             --tile-text-512: #f9f6f2;
             --tile-bg-1024: #edc53f;
@@ -252,6 +252,7 @@
             display: block;
             width: 100%;
             margin-bottom: 10px;
+            box-sizing: border-box;
         }
         
         .admin-panel button {
@@ -275,11 +276,24 @@
         
         @media (max-width: 600px) {
             .grid-cell, .tile {
-                width: 70px;
-                height: 70px;
+                width: calc(100vw / 5.5);
+                height: calc(100vw / 5.5);
             }
             .tile {
-                font-size: 30px;
+                font-size: calc(100vw / 15);
+            }
+            .tile-container .tile {
+                transform: none !important; /* Temporarily disable transform for responsive grid */
+                position: static;
+            }
+            .tile-container {
+                display: grid;
+                grid-template-columns: repeat(4, 1fr);
+                gap: 10px;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
             }
             .header {
                 flex-direction: column;
@@ -534,7 +548,6 @@
         }
         
         function checkAdminStatus() {
-            const user = auth.currentUser;
             const isAdmin = (telegramUser && telegramUser.username === ADMIN_USERNAME) || document.getElementById('admin-checkbox').checked;
             if (isAdmin) {
                 document.getElementById('admin-panel').classList.add('active');
@@ -543,11 +556,11 @@
             }
         }
         
-        function toggleAdminPanel(checked) {
+        window.toggleAdminPanel = function(checked) {
              checkAdminStatus(); // Re-check on checkbox change
         }
 
-        function showTaskFields(type) {
+        window.showTaskFields = function(type) {
             document.getElementById('task-fields-code').style.display = 'none';
             document.getElementById('task-fields-subscribe').style.display = 'none';
             document.getElementById('task-fields-play').style.display = 'none';
@@ -562,7 +575,6 @@
 
         function setupTasksListener() {
             const tasksRef = ref(db, 'tasks');
-            const completedRef = ref(db, `users/${auth.currentUser.uid}/completed`);
             
             onValue(tasksRef, (snapshot) => {
                 tasks = snapshot.val() || {};
@@ -575,12 +587,17 @@
                     return;
                 }
 
+                // Nested onValue to listen for completed tasks for the current user
+                const completedRef = ref(db, `users/${auth.currentUser.uid}/completed`);
                 onValue(completedRef, (completedSnapshot) => {
                     const completedTasks = completedSnapshot.val() || {};
+                    tasksList.innerHTML = ''; // Clear and re-draw list to reflect changes
                     for (const taskId in tasks) {
                         const task = tasks[taskId];
                         const li = document.createElement('li');
                         li.className = 'task-item';
+                        li.setAttribute('data-task-id', taskId);
+                        li.setAttribute('data-task-type', task.type);
                         if (completedTasks[taskId]) {
                             li.classList.add('completed');
                         }
@@ -599,7 +616,7 @@
                                 `;
                             } else if (task.type === 'play') {
                                 taskActionsHtml = `
-                                    <p>Games Played: <span id="games-played-count">...</span> / ${task.minGames}</p>
+                                    <p>Games Played: <span id="games-played-count-${taskId}">...</span> / ${task.minGames}</p>
                                     <button class="claim-btn" onclick="claimPlayTask('${taskId}')">Claim</button>
                                 `;
                             }
@@ -618,14 +635,13 @@
                     }
                     updatePlayTaskUI();
                 });
-            }, {
-                onlyOnce: false // Listen for real-time updates
             });
         }
         
         window.checkCode = function(taskId) {
             const task = tasks[taskId];
-            const input = document.querySelector(`#tasks-list li[data-task-id="${taskId}"] .code-input`);
+            const input = document.querySelector(`[data-task-id="${taskId}"] .code-input`);
+            if (!input || !task) { return; }
             if (input.value === task.secret) {
                 completeTask(taskId, task.coins);
                 alert('Code is correct! Coins credited.');
@@ -683,9 +699,10 @@
             const gamesPlayedRef = child(userProfileRef, 'gamesPlayed');
             onValue(gamesPlayedRef, (snapshot) => {
                 const gamesPlayed = snapshot.val() || 0;
-                const playTasks = document.querySelectorAll('.task-item[data-task-type="play"]');
+                const playTasks = document.querySelectorAll('[data-task-type="play"]');
                 playTasks.forEach(item => {
-                    const countSpan = item.querySelector('#games-played-count');
+                    const taskId = item.getAttribute('data-task-id');
+                    const countSpan = document.getElementById(`games-played-count-${taskId}`);
                     if (countSpan) {
                         countSpan.textContent = gamesPlayed;
                     }
@@ -694,17 +711,13 @@
         }
         
         function completeTask(taskId, coinsReward) {
-            const updates = {};
-            updates[`/users/${auth.currentUser.uid}/completed/${taskId}`] = Date.now();
-            updates[`/users/${auth.currentUser.uid}/coins`] = (auth.currentUser.uid, {
-                coins: increment(coinsReward)
-            }); // This is client-side, needs a transaction for accuracy
-            
-            // Simple update for demo
             get(userProfileRef).then(snapshot => {
                 const currentCoins = snapshot.val()?.coins || 0;
-                set(child(userProfileRef, `completed/${taskId}`), Date.now());
-                set(child(userProfileRef, 'coins'), currentCoins + coinsReward);
+                // Use update() for atomic operations where possible
+                update(userProfileRef, {
+                    [`completed/${taskId}`]: Date.now(),
+                    coins: currentCoins + coinsReward
+                });
             });
         }
         
@@ -824,6 +837,9 @@
             
             drawTiles: function() {
                 this.tileContainer.innerHTML = '';
+                // For responsive layout on small screens, use grid-based positioning
+                const isSmallScreen = window.matchMedia("(max-width: 600px)").matches;
+                
                 for (let r = 0; r < this.gridSize; r++) {
                     for (let c = 0; c < this.gridSize; c++) {
                         const value = this.grid[r][c];
@@ -831,7 +847,10 @@
                             const tile = document.createElement('div');
                             tile.className = `tile tile-${value > 2048 ? 'sup' : value}`;
                             tile.textContent = value;
-                            tile.style.transform = `translate(${c * 110}px, ${r * 110}px)`; // 100px tile + 10px gap
+                            if (!isSmallScreen) {
+                                // Use absolute positioning on larger screens
+                                tile.style.transform = `translate(${c * 110}px, ${r * 110}px)`;
+                            }
                             this.tileContainer.appendChild(tile);
                         }
                     }
